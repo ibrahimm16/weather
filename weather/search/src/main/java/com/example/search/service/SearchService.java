@@ -26,41 +26,40 @@ public class SearchService implements SearchServiceInterface {
 
     @Override
     public List<City> getCitiesWeather(List<String> queryNames) {
-        List<CompletableFuture<List<City>>> resultsFuture = new ArrayList<>();
+        return CompletableFuture.supplyAsync(() -> {
+            List<CompletableFuture<List<City>>> futureList = new ArrayList<>();
+            queryNames.forEach((queryName) -> {
+                String idURL = SearchConfiguration.idEndpoint + queryName;
 
-        queryNames.forEach((queryName) -> {
-            String idURL = SearchConfiguration.idEndpoint + queryName;
+                CompletableFuture<List<City>> citiesListFuture = CompletableFuture.supplyAsync(() -> {
+                    List<Integer> queryIds = restTemplate.getForObject(idURL, ArrayList.class);
 
-            CompletableFuture<List<City>> citiesListFuture = CompletableFuture.supplyAsync(() -> {
-                CityIds queryIds = restTemplate.getForObject(idURL, CityIds.class);
+                    List<CompletableFuture<City>> citiesFuture = new ArrayList<>();
+                    queryIds.forEach((id) -> {
+                        String weatherEndpoint = SearchConfiguration.weatherEndpoint + id;
+                        CompletableFuture<City> cityFuture = CompletableFuture.supplyAsync(() -> restTemplate.getForObject(weatherEndpoint, City.class), executorService);
+                        citiesFuture.add(cityFuture);
+                    });
 
-                List<CompletableFuture<City>> citiesFuture = new ArrayList<>();
-                queryIds.getData().forEach((id) -> {
-                    String weatherEndpoint = SearchConfiguration.weatherEndpoint + id;
-                    CompletableFuture<City> cityFuture = CompletableFuture.supplyAsync(() -> restTemplate.getForObject(weatherEndpoint, City.class), executorService);
-                    citiesFuture.add(cityFuture);
-                });
-
-                return CompletableFuture
-                        .allOf(citiesFuture.toArray(new CompletableFuture[0]))
-                        .thenApply(Void -> {
-                            List<City> cities = new ArrayList<>();
-                            citiesFuture.forEach((cityFuture) -> {
-                                cities.add(cityFuture.join());
-                            });
-                            return cities;
-                        }).join();
-            }, executorService);
-
-            resultsFuture.add(citiesListFuture);
-        });
-
-        return CompletableFuture.allOf(resultsFuture.toArray(new CompletableFuture[0])).thenApply(Void -> {
-            List<City> cities = new ArrayList<>();
-            resultsFuture.forEach((resultFuture) -> {
-                cities.addAll(resultFuture.join());
+                    return CompletableFuture
+                            .allOf(citiesFuture.toArray(new CompletableFuture[0]))
+                            .thenApply(Void -> {
+                                List<City> cities = new ArrayList<>();
+                                citiesFuture.forEach((cityFuture) -> {
+                                    cities.add(cityFuture.join());
+                                });
+                                return cities;
+                            }).join();
+                }, executorService);
+                futureList.add(citiesListFuture);
             });
-            return cities;
-        }).join();
+            return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).thenApply(Void -> {
+                List<City> cities = new ArrayList<>();
+                futureList.forEach((resultFuture) -> {
+                    cities.addAll(resultFuture.join());
+                });
+                return cities;
+            }).join();
+        }, executorService).join();
     }
 }
