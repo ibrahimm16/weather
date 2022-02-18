@@ -1,11 +1,11 @@
 package com.example.search.service;
 
-import com.example.search.pojo.City;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public interface SearchServiceInterface {
-    List<City> getCitiesWeather(List<String> queryNames);
+    List<Map<String, Object>> getCitiesWeather(List<String> queryNames);
 }
