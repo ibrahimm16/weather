@@ -22,8 +22,8 @@ public class SearchController {
         this.searchService = searchService;
     }
 
-    @GetMapping("/weather/search")
-    public ResponseEntity<List<City>> getDetails(@RequestParam List<String> cities) {
+     @GetMapping("/weather/search")
+    public ResponseEntity<List<Map<String, Object>>> getDetails(@RequestParam List<String> cities) {
         return new ResponseEntity<>(searchService.getCitiesWeather(cities), HttpStatus.OK);
     }
 }
