@@ -25,26 +25,26 @@ public class SearchService implements SearchServiceInterface {
     }
 
     @Override
-    public List<City> getCitiesWeather(List<String> queryNames) {
+    public List<Map<String, Object>> getCitiesWeather(List<String> queryNames) {
         return CompletableFuture.supplyAsync(() -> {
-            List<CompletableFuture<List<City>>> futureList = new ArrayList<>();
+            List<CompletableFuture<List<Map<String, Object>>>> futureList = new ArrayList<>();
             queryNames.forEach((queryName) -> {
                 String idURL = SearchConfiguration.idEndpoint + queryName;
 
-                CompletableFuture<List<City>> citiesListFuture = CompletableFuture.supplyAsync(() -> {
+                CompletableFuture<List<Map<String, Object>>> citiesListFuture = CompletableFuture.supplyAsync(() -> {
                     List<Integer> queryIds = restTemplate.getForObject(idURL, ArrayList.class);
 
-                    List<CompletableFuture<City>> citiesFuture = new ArrayList<>();
+                    List<CompletableFuture<Map<String, Object>>> citiesFuture = new ArrayList<>();
                     queryIds.forEach((id) -> {
                         String weatherEndpoint = SearchConfiguration.weatherEndpoint + id;
-                        CompletableFuture<City> cityFuture = CompletableFuture.supplyAsync(() -> restTemplate.getForObject(weatherEndpoint, City.class), executorService);
+                        CompletableFuture<Map<String, Object>> cityFuture = CompletableFuture.supplyAsync(() -> restTemplate.getForObject(weatherEndpoint, LinkedHashMap.class), executorService);
                         citiesFuture.add(cityFuture);
                     });
 
                     return CompletableFuture
                             .allOf(citiesFuture.toArray(new CompletableFuture[0]))
                             .thenApply(Void -> {
-                                List<City> cities = new ArrayList<>();
+                                List<Map<String, Object>> cities = new ArrayList<>();
                                 citiesFuture.forEach((cityFuture) -> {
                                     cities.add(cityFuture.join());
                                 });
@@ -54,7 +54,7 @@ public class SearchService implements SearchServiceInterface {
                 futureList.add(citiesListFuture);
             });
             return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0])).thenApply(Void -> {
-                List<City> cities = new ArrayList<>();
+                List<Map<String, Object>> cities = new ArrayList<>();
                 futureList.forEach((resultFuture) -> {
                     cities.addAll(resultFuture.join());
                 });
